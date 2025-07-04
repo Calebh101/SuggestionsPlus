@@ -7,6 +7,7 @@ import 'package:suggestions_plus/classes.dart';
 import 'package:suggestions_plus/main.dart';
 import 'package:hotreloader/hotreloader.dart';
 
+bool useReloader = false;
 bool showingInput = false;
 HotReloader? reloader;
 
@@ -15,9 +16,13 @@ Future<void> setupStdinListener() async {
   stdin.lineMode = false;
 
   try {
-    reloader = await HotReloader.create();
+    if (useReloader) {
+      reloader = await HotReloader.create();
+    } else {
+      throw Exception("Reloader is disabled.");
+    }
   } catch (e) {
-    log([Log("Failed to load HotReloader: "), Log(e, effects: [1])]);
+    log([Log("Not using reloader: "), Log(e, effects: [1])], ["Stdin", "Listener"]);
   }
 
   stdin.listen((List<int> data) async {
@@ -25,7 +30,15 @@ Future<void> setupStdinListener() async {
       String char = utf8.decode([byte]);
       switch (char) {
         case "q": quit(0);
-        case "r": if (reloader != null) reload(); break;
+        case "r": 
+          if (useReloader) {
+            reloadApplication();
+          } else {
+            restartApplication();
+          }
+          break;
+        case "R":
+          await restartApplication();
       }
     }
   });
@@ -37,7 +50,12 @@ Future<Uri?> getServiceUri() async {
   return uri;
 }
 
-Future<void> reload() async {
+Future<Never> restartApplication() async {
+  log([Log("Starting restart...")], ["Reloader"]);
+  await quit(249);
+}
+
+Future<void> reloadApplication() async {
   try {
     log([Log("Starting reload...")]);
     DateTime start = DateTime.now();
@@ -58,20 +76,20 @@ String logsToString(List<Log> logs, [List<int> effects = const []]) {
   return logs.map((Log item) => (item..effects.addAll(effects)).toString()).join("");
 }
 
-String buildPrefix(String prefix, List<String> from) {
-  return "[${DateTime.now().toIso8601String().replaceFirst('T', ' ')}] [${prefix.toUpperCase()}] [${from.join(".")}]";
+List<Log> buildPrefix(Log prefix, List<String> from) {
+  return [Log("[${DateTime.now().toIso8601String().replaceFirst('T', ' ')}] ["), Log(prefix.input.toString().toUpperCase(), effects: [...prefix.effects]), Log("] [${from.join(".")}]")];
 }
 
 void log(List<Log> logs, [List<String> from = const ["Main"]]) {
-  print("${buildPrefix("info", from)} ${logsToString(logs)}");
+  print("${logsToString(buildPrefix(Log("info"), from))} ${logsToString(logs)}");
 }
 
 void warn(List<Log> logs, [List<String> from = const ["Main"]]) {
-  print("${buildPrefix("warn", from)} ${logsToString(logs, [33])}");
+  print("${logsToString(buildPrefix(Log("warn", effects: [33]), from))} ${logsToString(logs, [33])}");
 }
 
 void error(List<Log> logs, [List<String> from = const ["Main"]]) {
-  print("${buildPrefix("errr", from)} ${logsToString(logs, [1, 31])}");
+  print("${logsToString(buildPrefix(Log("errr", effects: [31]), from))} ${logsToString(logs, [1, 31])}");
 }
 
 String? ask(List<Log> question, {bool bold = false, bool newline = true}) {
@@ -116,7 +134,12 @@ void linebreak() {
 }
 
 Future<Never> quit([int code = 0]) async {
-  warn([Log("Closing process with code "), Log(code, effects: [1, (code == 0 ? 32 : 33)]), Log("...")], ["Quit"]);
-  await client.close();
+  warn([Log("Closing process with code "), Log(code, effects: [1, (code == 0 ? 32 : 33)]), Log("...")], ["Closer"]);
+  await reloader?.stop();
+  try {
+    await client.close();
+  } catch (e) {
+    log([Log("Unable to close client: "), Log(e, effects: [1])], ["Closer"]);
+  }
   exit(code);
 }

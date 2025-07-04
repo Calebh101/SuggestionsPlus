@@ -1,4 +1,5 @@
 import 'package:nyxx/nyxx.dart';
+import 'package:suggestions_plus/data.dart';
 
 enum LogType {
   standard,
@@ -23,7 +24,19 @@ class Log {
 class Database {
   List<Server> servers;
   Bot bot;
-  Database({required this.servers, required this.bot});
+  Map raw;
+  Database({required this.servers, required this.bot, required this.raw});
+
+  Future<void> save() async {
+    raw["servers"] = servers.map((Server server) {
+      return {
+        "id": server.id.value,
+        "users": server.users.map((ServerUser user) => user.toMap()),
+      };
+    });
+
+    await saveRawData(raw);
+  }
 }
 
 class Bot {
@@ -37,15 +50,25 @@ class Bot {
 class Server {
   ServerSettings settings;
   List<ServerUser> users;
-  String id;
+  Snowflake id;
   Server(this.id, {required this.settings, required this.users});
 }
 
 class ServerSettings {
   ServerSettings();
+
+  Map toMap() {
+    return {};
+  }
 }
 
 class ServerUser {
-  User user;
-  ServerUser(this.user);
+  Snowflake id;
+  ServerUser(this.id);
+
+  Map toMap() {
+    return {
+      "id": id.value,
+    };
+  }
 }

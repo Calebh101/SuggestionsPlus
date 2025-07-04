@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:nyxx/nyxx.dart';
 import 'package:path/path.dart' as p;
 
 import 'classes.dart';
@@ -60,10 +61,10 @@ Future<Database> loadData() async {
       }
     })();
 
-    Database db = Database(servers: [], bot: bot);
+    Database db = Database(servers: [], bot: bot, raw: data);
 
     for (Map<String, dynamic> server in data["servers"]) {
-      db.servers.add(Server(server["id"], settings: ServerSettings(), users: server["users"]));
+      db.servers.add(Server(Snowflake(server["id"]), settings: ServerSettings(), users: (server["users"] as List<Map>).map((Map user) => ServerUser(Snowflake(user["id"]))).toList()));
     }
 
     database = db;
@@ -79,7 +80,7 @@ Future<void> saveRawData(Map data) async {
 }
 
 Future<void> autherror(Object? error, Map data) async {
-  if (yesNo([Log("Client verification has failed. Do you want to clear client authentication?")])) {
+  if (yesNo([Log("Client verification may have failed. Do you want to clear client authentication credentials?")])) {
     data["client"] = {};
     await saveRawData(data);
   }
