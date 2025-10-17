@@ -37,6 +37,17 @@ class Database {
 
     await saveRawData(raw);
   }
+
+  Server getServer(Snowflake id) {
+    Server? server;
+    for (var s in servers) if (s.id == id) server = s;
+    if (server != null) return server;
+
+    server = Server(id, settings: ServerSettings.initial, users: []);
+    servers.add(server);
+    save();
+    return server;
+  }
 }
 
 class Bot {
@@ -55,10 +66,15 @@ class Server {
 }
 
 class ServerSettings {
-  ServerSettings();
+  Snowflake? suggestionsChannel;
+  ServerSettings({required this.suggestionsChannel});
+
+  static ServerSettings get initial => ServerSettings(suggestionsChannel: null);
 
   Map toMap() {
-    return {};
+    return {
+      "suggestionsChannel": suggestionsChannel,
+    };
   }
 }
 

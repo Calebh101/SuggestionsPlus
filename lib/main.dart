@@ -7,11 +7,11 @@ import 'functions.dart';
 late NyxxGateway client;
 late CommandsPlugin commandsPlugin;
 
-List<Command> buildCommands([Server? server]) {
+List<CommandRegisterable<CommandContext>> buildCommands([Server? server]) {
   return [
     ChatCommand(
       'ping',
-      "Get the bot's latency",
+      "Get the bot's latency.",
       (ChatContext context) async {
         String format(Duration latency) {
           return "${(latency.inMicroseconds / Duration.microsecondsPerMillisecond).toStringAsFixed(3)}ms";
@@ -28,15 +28,26 @@ List<Command> buildCommands([Server? server]) {
         )]));
       },
     ),
+    ChatGroup("settings", "Change the configuration of Suggestions+.", children: [
+      ChatCommand(
+        "channel",
+        "Set the channel that Suggestions+ will send all new suggestions to.",
+        (ChatContext context) {
+          context.respond(MessageBuilder(content: "Please select a channel to be used for Suggestions+. This channel will be used to send all new suggestions.", components: [
+            ActionRowBuilder(components: [SelectMenuBuilder.channelSelect(customId: "channel.main", maxValues: 1, minValues: 1)]),
+          ]));
+        },
+      ),
+    ]),
   ];
 }
 
 CommandsPlugin buildCommandsPlugin() {
   log([Log("Building commands for server "), Log("none", effects: [1])]);
-  List<Command> commands = buildCommands();
+  List<CommandRegisterable<CommandContext>> commands = buildCommands();
   CommandsPlugin plugin = CommandsPlugin(prefix: null);
 
-  for (Command command in commands) {
+  for (CommandRegisterable<CommandContext> command in commands) {
     plugin.addCommand(command);
   }
 
@@ -70,6 +81,32 @@ void main(List<String> arguments) async {
   client.onMessageCreate.listen((event) async {
     if (event.mentions.contains(bot)) {
       event.message.react(ReactionBuilder(name: "🗿", id: null));
+    }
+  });
+
+  client.onMessageComponentInteraction.listen((event) async {
+    if (event.interaction.data.customId == "channel.main") {
+      final selected = int.parse(event.interaction.data.values!.first);
+      final guild = event.interaction.guildId;
+
+      if (guild == null) {
+        await event.interaction.respond(
+          MessageBuilder(
+            content: "Suggestions+ cannot be used in DMs.",
+          ),
+        );
+
+        return;
+      }
+
+      database.getServer(guild).settings.suggestionsChannel = Snowflake(selected);
+      database.save();
+
+      await event.interaction.respond(
+        MessageBuilder(
+          content: "Suggestions+ will now use <#$selected> as the suggestions channel!",
+        ),
+      );
     }
   });
 }

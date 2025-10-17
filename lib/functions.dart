@@ -66,9 +66,9 @@ Future<void> reloadApplication() async {
   }
 }
 
-extension on DateTime {
-  int operator -(DateTime other) {
-    return millisecondsSinceEpoch - other.millisecondsSinceEpoch;
+extension DateTimeSubtraction on DateTime {
+  DateTime operator -(DateTime other) {
+    return DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch - other.millisecondsSinceEpoch);
   }
 }
 

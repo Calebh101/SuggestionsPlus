@@ -48,6 +48,7 @@ Future<Database> loadData() async {
 
         for (List<String> key in nullKeys.map((String item) => item.split("."))) {
           client[key[1]] = ask([Log("Please enter the credential "), Log("${key[0]}.${key[1]}", effects: [1])], newline: false);
+          File("${root.path}/data/backupCredentials.json").writeAsString(jsonEncode(client));
         }
 
         if (nullKeys.isNotEmpty) linebreak();
@@ -64,7 +65,8 @@ Future<Database> loadData() async {
     Database db = Database(servers: [], bot: bot, raw: data);
 
     for (Map<String, dynamic> server in data["servers"]) {
-      db.servers.add(Server(Snowflake(server["id"]), settings: ServerSettings(), users: (server["users"] as List<Map>).map((Map user) => ServerUser(Snowflake(user["id"]))).toList()));
+      Map settings = server["settings"];
+      db.servers.add(Server(Snowflake(server["id"]), settings: ServerSettings(suggestionsChannel: settings["suggestionsChannel"] == null ? null : Snowflake(settings["suggestionsChannel"])), users: (server["users"] as List<Map>).map((Map user) => ServerUser(Snowflake(user["id"]))).toList()));
     }
 
     database = db;
